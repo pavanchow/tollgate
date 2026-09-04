@@ -1,0 +1,19 @@
+[package]
+name = "tollgate"
+version = "0.1.0"
+edition = "2021"
+authors = ["Pavan Nallamothu"]
+description = "A from-scratch API gateway: routing, auth, and rate limiting as a pure, testable pipeline where every allow or deny carries an explicit reason."
+license = "MIT"
+repository = "https://github.com/pavanchow/tollgate"
+
+[[bin]]
+name = "tollgate"
+path = "src/main.rs"
+
+[lib]
+name = "tollgate"
+path = "src/lib.rs"
+
+[profile.release]
+opt-level = 3
