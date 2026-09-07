@@ -6,6 +6,7 @@
 <title>Tollgate: a from-scratch API gateway with a pure routing, auth, and rate limit pipeline</title>
 <meta name="description" content="Tollgate by Pavan Nallamothu: a from-scratch API gateway in pure Rust where routing, auth, and rate limiting are a pure pipeline, and every allow or deny carries an explicit reason. 404 no route, 401 missing or unknown key, 403 wrong scope, 429 with a correct Retry-After.">
 <meta name="author" content="Pavan Nallamothu (pavanchow)">
+<meta name="keywords" content="API gateway, routing, authentication, authorization, rate limiting, token bucket, reverse proxy, reason codes, 401, 403, 404, 429 Retry-After, scope, pure function, injected clock, deterministic, dependency free, Rust, Pavan Nallamothu, pavanchow">
 <link rel="canonical" href="https://pavanchow.github.io/tollgate/">
 <link rel="icon" type="image/svg+xml" href="logo.svg">
 <link rel="author" href="https://github.com/pavanchow">
@@ -17,7 +18,7 @@
 <meta name="twitter:title" content="Tollgate: a from-scratch API gateway with a pure routing, auth, and rate limit pipeline">
 <meta name="twitter:description" content="Send a request and watch it routed, authed, and rate limited, with the exact status and reason and the token bucket draining, live.">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Tollgate","applicationCategory":"DeveloperApplication","operatingSystem":"Cross-platform","description":"Tollgate is a from-scratch API gateway in pure Rust where routing, auth, and rate limiting are a pure pipeline. The whole policy is one function, decide(config, request, now, buckets), that returns Allow with the shaped request or Reject with a status, a human reason, and the headers to send. The clock is injected, so rate limiting is exercised over virtual time.","url":"https://pavanchow.github.io/tollgate/","author":{"@type":"Person","name":"Pavan Nallamothu"},"programmingLanguage":"Rust","codeRepository":"https://github.com/pavanchow/tollgate","license":"https://opensource.org/licenses/MIT"}
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Tollgate","applicationCategory":"DeveloperApplication","softwareVersion":"0.1.0","operatingSystem":"Cross-platform","description":"Tollgate is a from-scratch API gateway in pure Rust where routing, auth, and rate limiting are a pure pipeline. The whole policy is one function, decide(config, request, now, buckets), that returns Allow with the shaped request or Reject with a status, a human reason, and the headers to send. The clock is injected, so rate limiting is exercised over virtual time.","url":"https://pavanchow.github.io/tollgate/","author":{"@type":"Person","name":"Pavan Nallamothu"},"programmingLanguage":"Rust","codeRepository":"https://github.com/pavanchow/tollgate","license":"https://opensource.org/licenses/MIT"}
 </script>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"Person","name":"Pavan Nallamothu","alternateName":"pavanchow","url":"https://github.com/pavanchow","sameAs":["https://github.com/pavanchow","https://hackerone.com/pavanchow"]}
@@ -183,6 +184,31 @@
   footer.site .name { color: var(--ink); font-weight: 600; }
   footer.site p + p { margin-top: 10px; }
   @media (max-width: 640px) { .hero { padding: 56px 20px 20px; } section.narr { padding: 54px 0; } }
+
+  nav .v { color: var(--muted); font-family: var(--mono); font-size: 12px; }
+  .cmp { max-width: 820px; margin: 36px auto 0; }
+  .cmp .r { display: grid; grid-template-columns: minmax(150px,1fr) 2fr; gap: 14px 34px; padding: 22px 0; border-top: 1px solid var(--line); }
+  .cmp .r:first-child { border-top: none; }
+  .cmp .r b { font-size: 17px; color: var(--ink); }
+  .cmp .r p { color: var(--muted); margin: 0; }
+  .cmp .r.self b { color: var(--accent); }
+  @media (max-width: 640px) { .cmp .r { grid-template-columns: 1fr; gap: 6px; } }
+  .pgrid { display: grid; grid-template-columns: repeat(2,1fr); gap: 16px; max-width: 900px; margin: 40px auto 0; }
+  @media (max-width: 640px) { .pgrid { grid-template-columns: 1fr; } }
+  .pcard { background: var(--code-bg); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+  .pcard h3 { font-family: var(--mono); font-size: 15px; margin: 0 0 8px; display: flex; align-items: center; gap: 9px; color: var(--ink); }
+  .pcard p { color: var(--muted); font-size: 14.5px; margin: 0; }
+  .ptag { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: .04em; border: 1px solid var(--line); color: var(--muted); }
+  .ptag.green { color: var(--green); border-color: var(--green); }
+  .ptag.amber { color: var(--amber); border-color: var(--amber); }
+  .ptag.red { color: var(--red); border-color: var(--red); }
+  .srf { max-width: 820px; margin: 36px auto 28px; }
+  .srf .r { display: grid; grid-template-columns: minmax(150px,1fr) 2fr; gap: 14px 34px; padding: 22px 0; border-top: 1px solid var(--line); }
+  .srf .r:first-child { border-top: none; }
+  .srf .r b { font-size: 17px; color: var(--ink); }
+  .srf .r p { color: var(--muted); margin: 0; }
+  @media (max-width: 640px) { .srf .r { grid-template-columns: 1fr; gap: 6px; } }
+  .caption { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: center; margin: 22px auto 0; max-width: 760px; }
 </style>
 </head>
 <body>
@@ -193,8 +219,11 @@
   <div class="links">
     <a href="#sim">Playground</a>
     <a href="#proof">Proof</a>
+    <a href="#compare">Compare</a>
+    <a href="#primitives">Primitives</a>
     <a href="#use">Use it</a>
     <a class="gh" href="https://github.com/pavanchow/tollgate">GitHub</a>
+    <span class="v">v0.1.0</span>
   </div>
 </div></nav>
 
@@ -286,6 +315,8 @@
     <h2>Decision log <span class="hint">newest first</span></h2>
     <div class="log" id="log"></div>
   </section>
+
+  <p class="caption">Runs fully client-side, nothing leaves the page. The same routing, auth, token-bucket, and shaping pipeline as the Rust decide function, on a simulated clock.</p>
 </main>
 
 <section id="proof" class="narr"><div class="wrap">
@@ -300,8 +331,39 @@
   <p class="lead" style="margin-top:26px">The pipeline is four small stages, each short-circuiting on the first rejection. Routing matches by host, method, and path, most specific wins: exact beats a <code>:param</code> template beats a <code>prefix*</code>. Auth requires an API key via <code>X-API-Key</code> or <code>Authorization: Bearer</code>, then checks the route's scope. A per-key token bucket, advanced by the injected clock, returns a 429 with a correct <code>Retry-After</code>. Shaping rewrites headers and path prefixes before forwarding.</p>
 </div></section>
 
+<section id="compare" class="narr"><div class="wrap">
+  <h2>How it differs</h2>
+  <p class="lead">Real gateways run this policy in production and are large, config-driven systems. Tollgate is the same policy written as one pure function you can read and test.</p>
+  <div class="cmp">
+    <div class="r"><b>Kong and Envoy</b><p>Production gateways and proxies with rich plugin ecosystems, driven by large configurations. Powerful, but when a request is denied you are often left tracing which rule fired.</p></div>
+    <div class="r"><b>nginx</b><p>Routes and rate-limits through config directives such as <code>limit_req</code>. Fast and everywhere, but the policy is spread across the config and a denial is terse.</p></div>
+    <div class="r"><b>AWS API Gateway</b><p>A managed gateway with routing, authorizers, and throttling. Convenient, but it is a hosted service you cannot run locally or unit-test over virtual time.</p></div>
+    <div class="r self"><b>Tollgate</b><p>The whole policy is one pure function, <code>decide(config, request, now, buckets)</code>. Every allow or deny carries an explicit status, a human reason, and the headers to send. The clock is injected, so a burst tripping 429 is tested over virtual time with no real sleeps, and there are zero dependencies.</p></div>
+  </div>
+</div></section>
+
+<section id="primitives" class="narr"><div class="wrap">
+  <p class="eyebrow" style="text-align:center">The pieces of the pipeline</p>
+  <h2 style="margin-top:14px">Routing, auth, limits, and a reason for every answer.</h2>
+  <p class="lead">Each stage is its own small module and short-circuits on the first rejection. Every outcome names itself.</p>
+  <div class="pgrid">
+    <div class="pcard"><h3><span class="ptag">stage</span> Routing</h3><p>Match by host, method, and path. Paths can be exact, a <code>:param</code> template, or a <code>prefix*</code>, and the most specific wins: exact beats param beats prefix. No match is a 404.</p></div>
+    <div class="pcard"><h3><span class="ptag amber">stage</span> Auth</h3><p>A route may require an API key via <code>X-API-Key</code> or <code>Authorization: Bearer</code>. Missing or unknown is a 401; a known key without the route's scope is a 403.</p></div>
+    <div class="pcard"><h3><span class="ptag red">stage</span> Token-bucket rate limiting</h3><p>A per-key bucket advanced by the injected clock, with a rate and a burst. Empty is a 429 with a correct <code>Retry-After</code>. It falls back to a per-IP bucket for anonymous routes.</p></div>
+    <div class="pcard"><h3><span class="ptag">reasons</span> Explicit reason codes</h3><p>Every response is a status plus a human reason plus the headers to send, such as <code>WWW-Authenticate</code> on a 401 and <code>Retry-After</code> on a 429. No silent black-box denial.</p></div>
+    <div class="pcard"><h3><span class="ptag green">clock</span> Injected clock</h3><p>Nothing in the policy reads the system clock. Time enters only through <code>now</code>, so rate limiting is exercised over virtual time and bursts are reproducible.</p></div>
+    <div class="pcard"><h3><span class="ptag green">reproducible</span> Purity and determinism</h3><p><code>decide</code> is pure: the only mutable state is the rate limiter passed in. Same inputs, same decision, every time. The socket layer is a thin shell around it.</p></div>
+  </div>
+</div></section>
+
 <section id="use" class="narr"><div class="wrap">
   <h2>Use it</h2>
+  <div class="srf">
+    <div class="r"><b>CLI</b><p><code>serve</code> a config in front of an upstream, <code>check</code> to dry-run a request and print the decision and reason (repeat it to watch the bucket drain to 429), and <code>print</code> to round-trip a parsed config back out.</p></div>
+    <div class="r"><b>The pure function</b><p><code>decide(config, request, now, buckets)</code> returns <code>Allow</code> with the shaped request or <code>Reject</code> with a status, a reason, and headers. The pipeline is unit-testable with no network at all.</p></div>
+    <div class="r"><b>Config format</b><p>A readable, line-based text format: <code>key</code> lines with scopes, then <code>route { ... }</code> blocks in any order, since routing picks the most specific match. Comments start with <code>#</code>.</p></div>
+    <div class="r"><b>Tests</b><p>The pipeline is exercised over virtual time with no real sleeps, and one integration test drives the real TCP path end to end.</p></div>
+  </div>
   <pre class="term"><span class="cm"># build and run the pipeline tests, no network needed</span>
 cargo build
 cargo test
