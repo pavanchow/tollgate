@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tollgate - a readable API gateway</title>
+<link rel="icon" type="image/svg+xml" href="logo.svg">
 <style>
   :root {
     --accent: #0071e3;
@@ -133,12 +134,19 @@
 </head>
 <body>
 <header>
+  <img src="logo.svg" alt="Tollgate logo" width="72" height="72">
   <h1>Tollgate</h1>
   <p>A from-scratch API gateway where routing, auth, and rate limiting are a pure pipeline, and every allow or deny carries an explicit reason.</p>
   <p class="pair">The policy layer that pairs with Rift and Ferryman. This page runs the real pipeline, ported to JavaScript, on a simulated clock.</p>
 </header>
 
 <main>
+  <details style="margin:0 0 20px;border:1px solid var(--line);border-radius:14px;background:var(--card);padding:0 16px;">
+    <summary style="cursor:pointer;padding:14px 0;font-weight:600;">How to use this playground</summary>
+    <div style="padding:0 0 16px;color:var(--muted);font-size:14px;line-height:1.6;">
+      Edit the <strong>Policy</strong> on the left (routes, keys, rate limits) and press <em>Load config</em>. Then fill in a request on the right and press <em>Send request</em>: Tollgate routes, authenticates, and rate limits it, then shows the decision and the exact reason in the log. Use the <em>Presets</em> to jump to a 200, 404, 401, 403, or 429. To watch a token bucket drain and trip 429, press <em>Send x5</em> (all at the same instant), then advance the simulated clock with <em>+0.5s</em> / <em>+1s</em> to see it refill. <em>Reset buckets + clock</em> starts over.
+    </div>
+  </details>
   <div class="presets">
     <strong style="align-self:center;font-size:13px;margin-right:4px;">Presets:</strong>
     <button data-preset="allow">Allowed + forwarded</button>

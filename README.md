@@ -1,3 +1,5 @@
+<img src="docs/logo.svg" alt="Tollgate logo" width="96">
+
 # Tollgate
 
 A from-scratch API gateway. Routing, auth, and rate limiting are a pure pipeline where every allow or deny carries an explicit reason, not a YAML-configured black box.
