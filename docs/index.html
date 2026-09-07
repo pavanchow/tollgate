@@ -3,8 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tollgate - a readable API gateway</title>
+<title>Tollgate: a from-scratch API gateway with a pure routing, auth, and rate limit pipeline</title>
+<meta name="description" content="Tollgate by Pavan Nallamothu: a from-scratch API gateway in pure Rust where routing, auth, and rate limiting are a pure pipeline, and every allow or deny carries an explicit reason. 404 no route, 401 missing or unknown key, 403 wrong scope, 429 with a correct Retry-After.">
+<meta name="author" content="Pavan Nallamothu (pavanchow)">
+<link rel="canonical" href="https://pavanchow.github.io/tollgate/">
 <link rel="icon" type="image/svg+xml" href="logo.svg">
+<link rel="author" href="https://github.com/pavanchow">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Tollgate: a from-scratch API gateway with a pure routing, auth, and rate limit pipeline">
+<meta property="og:description" content="The policy layer in front of an upstream: forward a request or reject it and say exactly why. Routing, auth, and rate limiting as one pure function on an injected clock. By Pavan Nallamothu.">
+<meta property="og:url" content="https://pavanchow.github.io/tollgate/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Tollgate: a from-scratch API gateway with a pure routing, auth, and rate limit pipeline">
+<meta name="twitter:description" content="Send a request and watch it routed, authed, and rate limited, with the exact status and reason and the token bucket draining, live.">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Tollgate","applicationCategory":"DeveloperApplication","operatingSystem":"Cross-platform","description":"Tollgate is a from-scratch API gateway in pure Rust where routing, auth, and rate limiting are a pure pipeline. The whole policy is one function, decide(config, request, now, buckets), that returns Allow with the shaped request or Reject with a status, a human reason, and the headers to send. The clock is injected, so rate limiting is exercised over virtual time.","url":"https://pavanchow.github.io/tollgate/","author":{"@type":"Person","name":"Pavan Nallamothu"},"programmingLanguage":"Rust","codeRepository":"https://github.com/pavanchow/tollgate","license":"https://opensource.org/licenses/MIT"}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Person","name":"Pavan Nallamothu","alternateName":"pavanchow","url":"https://github.com/pavanchow","sameAs":["https://github.com/pavanchow","https://hackerone.com/pavanchow"]}
+</script>
 <style>
   :root {
     --accent: #0071e3;
@@ -16,12 +33,15 @@
     --line: #e3e3e6;
     --muted: #6e6e73;
     --code-bg: #f5f5f7;
+    --ink: #1d1d1f;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
     margin: 0;
     background: #fbfbfd;
-    color: #1d1d1f;
+    color: var(--ink);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
@@ -38,18 +58,10 @@
       --line: #38383c;
       --muted: #98989d;
       --code-bg: #2a2a2c;
+      --ink: #f5f5f7;
     }
-    body { background: #000000; color: #f5f5f7; }
+    body { background: #000000; color: var(--ink); }
   }
-  header {
-    text-align: center;
-    padding: 64px 20px 32px;
-    max-width: 820px;
-    margin: 0 auto;
-  }
-  header h1 { font-size: 48px; letter-spacing: -0.02em; margin: 0 0 12px; }
-  header p { font-size: 20px; color: var(--muted); margin: 0 auto; max-width: 640px; }
-  header .pair { font-size: 15px; margin-top: 18px; color: var(--muted); }
   main { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
@@ -72,7 +84,7 @@
     background: var(--code-bg);
     color: inherit;
   }
-  textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; line-height: 1.45; resize: vertical; }
+  textarea { font-family: var(--mono); font-size: 12.5px; line-height: 1.45; resize: vertical; }
   .row { display: flex; gap: 10px; }
   .row > * { flex: 1; }
   button {
@@ -95,11 +107,11 @@
     display: flex; align-items: center; gap: 10px; margin-top: 14px;
     font-size: 14px; flex-wrap: wrap;
   }
-  .clock .t { font-family: ui-monospace, monospace; font-weight: 600; }
+  .clock .t { font-family: var(--mono); font-weight: 600; }
   .buckets { margin-top: 6px; }
   .bucket { margin: 12px 0; }
   .bucket .top { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
-  .bucket .key { font-family: ui-monospace, monospace; }
+  .bucket .key { font-family: var(--mono); }
   .bucket .bar { height: 12px; background: var(--code-bg); border-radius: 6px; overflow: hidden; }
   .bucket .fill { height: 100%; background: var(--green); border-radius: 6px; transition: width 0.25s ease; }
   .bucket.low .fill { background: var(--amber); }
@@ -113,9 +125,9 @@
     margin-bottom: 9px;
     font-size: 13.5px;
   }
-  .entry .status { font-weight: 600; font-family: ui-monospace, monospace; }
+  .entry .status { font-weight: 600; font-family: var(--mono); }
   .entry .reason { color: var(--muted); margin-top: 2px; }
-  .entry .meta { font-family: ui-monospace, monospace; font-size: 12px; color: var(--muted); margin-top: 4px; white-space: pre-wrap; }
+  .entry .meta { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 4px; white-space: pre-wrap; }
   .entry.s200 { border-left-color: var(--green); }
   .entry.s404 { border-left-color: var(--muted); }
   .entry.s401, .entry.s403 { border-left-color: var(--amber); }
@@ -127,26 +139,84 @@
   .stage { font-size: 11px; padding: 3px 8px; border-radius: 6px; background: var(--code-bg); color: var(--muted); }
   .stage.pass { background: rgba(26,156,83,0.15); color: var(--green); }
   .stage.fail { background: rgba(209,31,45,0.15); color: var(--red); }
-  footer { text-align: center; color: var(--muted); font-size: 13px; padding: 40px 20px 60px; }
   a { color: var(--accent); text-decoration: none; }
-  code { font-family: ui-monospace, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 5px; font-size: 0.9em; }
+  a:hover { text-decoration: underline; }
+  code { font-family: var(--mono); background: var(--code-bg); padding: 1px 5px; border-radius: 5px; font-size: 0.9em; }
+
+  /* ===== cocoon-grade shell ===== */
+  nav { position: sticky; top: 0; z-index: 20; background: rgba(255,255,255,.82); backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--line); }
+  @media (prefers-color-scheme: dark) { nav { background: rgba(0,0,0,.72); } }
+  nav .rowbar { display: flex; justify-content: space-between; align-items: center; height: 56px; max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  nav .brand { display: flex; align-items: center; gap: 9px; font-size: 18px; font-weight: 650; letter-spacing: -.01em; color: var(--ink); }
+  nav .brand .gem { width: 16px; height: 16px; border-radius: 50% 50% 50% 50%/60% 60% 40% 40%; background: linear-gradient(135deg,#5ea9ff,#0071e3); }
+  nav .links { display: flex; gap: 22px; align-items: center; }
+  nav .links a { color: var(--ink); font-size: 14.5px; text-decoration: none; }
+  nav .links a:hover { color: var(--accent); text-decoration: none; }
+  @media (max-width: 640px) { nav .links a:not(.gh) { display: none; } }
+
+  .hero { text-align: center; padding: 80px 20px 24px; max-width: 900px; margin: 0 auto; }
+  .hero img { display: block; margin: 0 auto 18px; }
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); margin: 0; }
+  .hero h1 { font-size: clamp(38px, 6.6vw, 60px); line-height: 1.06; letter-spacing: -.035em; font-weight: 700; margin: 16px 0 0; text-wrap: balance; }
+  .hero p.sub { max-width: 720px; margin: 22px auto 0; font-size: clamp(17px, 2.1vw, 21px); color: var(--muted); }
+  .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 30px; }
+  .btn { display: inline-block; padding: 12px 26px; border-radius: 999px; font-size: 15px; font-weight: 600; border: 1px solid var(--ink); color: var(--ink); text-decoration: none; }
+  .btn:hover { opacity: .72; text-decoration: none; }
+  .btn.primary { background: var(--ink); color: var(--card); border-color: var(--ink); }
+
+  details.howto { max-width: 900px; margin: 8px auto 20px; border: 1px solid var(--line); border-radius: 14px; padding: 0 18px; background: var(--card); }
+  details.howto > summary { cursor: pointer; padding: 15px 0; font-weight: 650; list-style: none; font-size: 16px; }
+  details.howto > summary::-webkit-details-marker { display: none; }
+  details.howto > summary::before { content: "\25B8"; display: inline-block; margin-right: 8px; color: var(--accent); transition: transform .15s; }
+  details.howto[open] > summary::before { transform: rotate(90deg); }
+  details.howto .body { padding: 0 0 16px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+  section.narr { border-top: 1px solid var(--line); padding: 70px 0; margin-top: 24px; }
+  section.narr .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  section.narr h2 { font-size: clamp(25px, 4.2vw, 35px); line-height: 1.14; letter-spacing: -.025em; font-weight: 660; text-align: center; max-width: 800px; margin: 0 auto; }
+  section.narr .lead { max-width: 720px; margin: 16px auto 0; text-align: center; color: var(--muted); font-size: 16px; }
+  pre.term { background: #15161c; color: #ececf4; border-radius: 14px; padding: 20px 22px; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; overflow-x: auto; max-width: 840px; margin: 28px auto 0; }
+  pre.term .cm { color: #8a8d9a; }
+  pre.term .g { color: #7fd6a0; }
+  pre.term .r { color: #ff8a80; }
+  footer.site { padding: 60px 20px; border-top: 1px solid var(--line); text-align: center; color: var(--muted); font-size: 14px; margin-top: 20px; }
+  footer.site .name { color: var(--ink); font-weight: 600; }
+  footer.site p + p { margin-top: 10px; }
+  @media (max-width: 640px) { .hero { padding: 56px 20px 20px; } section.narr { padding: 54px 0; } }
 </style>
 </head>
 <body>
-<header>
-  <img src="logo.svg" alt="Tollgate logo" width="72" height="72">
-  <h1>Tollgate</h1>
-  <p>A from-scratch API gateway where routing, auth, and rate limiting are a pure pipeline, and every allow or deny carries an explicit reason.</p>
-  <p class="pair">The policy layer that pairs with Rift and Ferryman. This page runs the real pipeline, ported to JavaScript, on a simulated clock.</p>
-</header>
+<noscript><div style="max-width:900px;margin:0 auto;padding:40px 20px;color:#6e6e73">Tollgate is a from-scratch API gateway in pure Rust by Pavan Nallamothu where routing, auth, and rate limiting are a pure pipeline, and every allow or deny carries an explicit reason: 404 no route, 401 missing or unknown key, 403 wrong scope, 429 with a correct Retry-After. Source: <a href="https://github.com/pavanchow/tollgate">github.com/pavanchow/tollgate</a>.</div></noscript>
 
-<main>
-  <details style="margin:0 0 20px;border:1px solid var(--line);border-radius:14px;background:var(--card);padding:0 16px;">
-    <summary style="cursor:pointer;padding:14px 0;font-weight:600;">How to use this playground</summary>
-    <div style="padding:0 0 16px;color:var(--muted);font-size:14px;line-height:1.6;">
-      Edit the <strong>Policy</strong> on the left (routes, keys, rate limits) and press <em>Load config</em>. Then fill in a request on the right and press <em>Send request</em>: Tollgate routes, authenticates, and rate limits it, then shows the decision and the exact reason in the log. Use the <em>Presets</em> to jump to a 200, 404, 401, 403, or 429. To watch a token bucket drain and trip 429, press <em>Send x5</em> (all at the same instant), then advance the simulated clock with <em>+0.5s</em> / <em>+1s</em> to see it refill. <em>Reset buckets + clock</em> starts over.
-    </div>
-  </details>
+<nav><div class="rowbar">
+  <div class="brand"><span class="gem"></span>Tollgate</div>
+  <div class="links">
+    <a href="#sim">Playground</a>
+    <a href="#proof">Proof</a>
+    <a href="#use">Use it</a>
+    <a class="gh" href="https://github.com/pavanchow/tollgate">GitHub</a>
+  </div>
+</div></nav>
+
+<div class="hero">
+  <img src="logo.svg" alt="Tollgate logo" width="72" height="72">
+  <p class="eyebrow">Rust &middot; API gateway</p>
+  <h1>Every allow or deny,<br>with a reason.</h1>
+  <p class="sub">Tollgate is a from-scratch API gateway where routing, auth, and rate limiting are a pure pipeline, and every allow or deny carries an explicit reason. A 404 means no route matched, a 401 means the key was missing or unknown, a 403 means it lacked the route's scope, and a 429 means the token bucket was empty and tells the caller how many seconds to wait. Edit the policy below, send a request, and watch it routed, authed, and rate limited with its exact status and reason.</p>
+  <div class="cta-row">
+    <a class="btn primary" href="#sim">Open the playground</a>
+    <a class="btn" href="https://github.com/pavanchow/tollgate">View on GitHub</a>
+  </div>
+</div>
+
+<details class="howto">
+  <summary>How to use this playground</summary>
+  <div class="body">
+    Edit the <strong>Policy</strong> on the left (routes, keys, rate limits) and press <em>Load config</em>. Then fill in a request on the right and press <em>Send request</em>: Tollgate routes, authenticates, and rate limits it, then shows the decision and the exact reason in the log. Use the <em>Presets</em> to jump to a 200, 404, 401, 403, or 429. To watch a token bucket drain and trip 429, press <em>Send x5</em> (all at the same instant), then advance the simulated clock with <em>+0.5s</em> / <em>+1s</em> to see it refill. <em>Reset buckets + clock</em> starts over.
+  </div>
+</details>
+
+<main id="sim">
   <div class="presets">
     <strong style="align-self:center;font-size:13px;margin-right:4px;">Presets:</strong>
     <button data-preset="allow">Allowed + forwarded</button>
@@ -218,9 +288,34 @@
   </section>
 </main>
 
-<footer>
-  Tollgate by Pavan Nallamothu &middot;
-  <a href="https://github.com/pavanchow/tollgate">github.com/pavanchow/tollgate</a>
+<section id="proof" class="narr"><div class="wrap">
+  <h2>One pure function, and an injected clock</h2>
+  <p class="lead">The whole policy is one function, <code>decide(config, request, now, buckets) -&gt; Decision</code>. It is pure: the only mutable state is the rate limiter passed in, and time enters only through <code>now</code>. Nothing in the policy reads the system clock, so rate limiting is exercised over virtual time and a burst trips 429 and refills correctly without a single real sleep.</p>
+  <pre class="term"><span class="cm">$ tollgate check examples/minimal.conf --host localhost --path /api/widgets --key demo-key --repeat 5</span>
+[1/5] <span class="g">ALLOW 200</span> -&gt; 127.0.0.1:9000  (path /api/widgets)
+[2/5] <span class="g">ALLOW 200</span> -&gt; 127.0.0.1:9000  (path /api/widgets)
+[3/5] <span class="g">ALLOW 200</span> -&gt; 127.0.0.1:9000  (path /api/widgets)
+[4/5] <span class="r">REJECT 429</span>  reason: rate limit exceeded, retry after 1s  [Retry-After: 1]
+[5/5] <span class="r">REJECT 429</span>  reason: rate limit exceeded, retry after 1s  [Retry-After: 1]</pre>
+  <p class="lead" style="margin-top:26px">The pipeline is four small stages, each short-circuiting on the first rejection. Routing matches by host, method, and path, most specific wins: exact beats a <code>:param</code> template beats a <code>prefix*</code>. Auth requires an API key via <code>X-API-Key</code> or <code>Authorization: Bearer</code>, then checks the route's scope. A per-key token bucket, advanced by the injected clock, returns a 429 with a correct <code>Retry-After</code>. Shaping rewrites headers and path prefixes before forwarding.</p>
+</div></section>
+
+<section id="use" class="narr"><div class="wrap">
+  <h2>Use it</h2>
+  <pre class="term"><span class="cm"># build and run the pipeline tests, no network needed</span>
+cargo build
+cargo test
+
+<span class="cm"># serve a config in front of an upstream</span>
+tollgate serve examples/gateway.conf --addr 127.0.0.1:8080
+
+<span class="cm"># dry-run a request and watch the bucket drain to 429</span>
+tollgate check examples/minimal.conf --host localhost --path /api/widgets --key demo-key --repeat 5</pre>
+</div></section>
+
+<footer class="site">
+  <p>Tollgate is MIT licensed. Zero external dependencies, pure Rust std. It pairs with Rift and Ferryman. Source and design notes are on <a href="https://github.com/pavanchow/tollgate">GitHub</a>.</p>
+  <p>By <span class="name">Pavan Nallamothu</span>.</p>
 </footer>
 
 <script>
