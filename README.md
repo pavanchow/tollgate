@@ -6,6 +6,8 @@ Tollgate is an API gateway written from scratch in pure Rust where routing, auth
 
 **[Live demo](https://pavanchow.github.io/tollgate/)** · MIT licensed · pure Rust, zero dependencies
 
+Built from scratch by [Pavan Nallamothu](https://pavanchow.github.io/) ([LinkedIn](https://www.linkedin.com/in/pavanchow/), [GitHub](https://github.com/pavanchow)).
+
 Tollgate is the policy layer you put in front of an upstream. It answers one question per request: forward it, or reject it and say exactly why. A 404 means no route matched. A 401 means the key was missing or unknown. A 403 means the key was known but lacked the route's scope. A 429 means the token bucket was empty, and the response tells the caller how many seconds to wait.
 
 It is built with zero external dependencies, pure Rust std. It pairs with two other from-scratch builds: Rift (a reverse proxy) and Ferryman (a load balancer). Tollgate is the piece that decides who gets through.
